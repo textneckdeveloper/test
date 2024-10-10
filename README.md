@@ -24,6 +24,244 @@
 
 [ CODE ]<br><br>
 
+● Dto Package<br><br>
+
+1. BoardDTO.java
+~~~java
+package com.green.dto;
+
+import java.time.LocalDateTime;
+
+import org.springframework.web.multipart.MultipartFile;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@NoArgsConstructor
+@AllArgsConstructor
+@Data
+public class BoardDTO {
+		private long boardNo;
+		private String boardTitle;
+		private String boardContent;
+		private String boardFile;
+		private MultipartFile file;
+		private int viewCount;
+		private int BoardWriteYear;
+		private LocalDateTime regDate;
+		private LocalDateTime modDate;
+		private Long sectionNo;
+}
+~~~
+
+<br>
+
+2. PageDTO.java
+~~~java
+package com.green.dto;
+
+import lombok.Data;
+
+@Data
+public class PageDTO {
+	private int startPage;
+	private int endPage;
+	
+	private boolean prev;
+	private boolean next;
+	
+	private long total;
+	private PagingInfo pagingInfo;
+	
+	public PageDTO(PagingInfo pagingInfo, long total) {
+		this.pagingInfo = pagingInfo;
+		this.total = total;
+		
+		this.endPage = ((pagingInfo.getPageNum()+9)/10)*10;
+		this.startPage = this.endPage-9;
+		
+		int realEndPage = (int)(Math.ceil(this.total/(pagingInfo.getAmount()*1.0)));
+		
+		if(realEndPage < this.endPage) {
+			this.endPage = realEndPage;
+		}
+		
+		this.prev = startPage != 1;
+		this.next = this.endPage < realEndPage;
+	}
+}
+~~~
+
+<br>
+
+3. PagingInfo.java
+~~~java
+package com.green.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@Data
+@AllArgsConstructor
+public class PagingInfo {
+	private int pageNum;
+	private int amount;
+	
+	public PagingInfo() {
+		this(1, 9);
+	}
+}
+~~~
+
+<br>
+
+● Entity Package<br><br>
+
+1. Board.java
+~~~java
+package com.green.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+@Entity
+@Table(name="board")
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
+@Setter
+@Builder
+@ToString
+public class Board extends BaseEntity {
+	@Id
+	@GeneratedValue(strategy=GenerationType.IDENTITY)
+	private Long boardNo;
+	
+	@Column
+	private int boardWriteYear;
+	
+	@Column(length=100, nullable=false)
+	private String boardTitle;
+	
+	@Column(length=1000, nullable=false)
+	private String boardContent;
+	
+	@Setter
+	@Column
+	private String boardFile;
+	
+	@Setter
+	@Column(nullable=false)
+	private int viewCount;
+	
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name="section_no", nullable=false)
+	private Section section;
+}
+~~~
+
+<br>
+
+2. Section.java
+~~~java
+package com.green.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
+
+@Entity
+@Table(name="section")
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@ToString
+public class Section {
+	@Id
+	@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "section_seq")
+	@SequenceGenerator(name = "section_seq", sequenceName = "SECTION_SEQ", allocationSize = 1)
+	private Long sectionNo;
+	
+	@Column(length=50, nullable=false)
+	private String sectionName;
+
+	public Section(String sectionName) {
+		this.sectionName = sectionName;
+	}
+}
+~~~
+
+<br>
+
+● Repository Package<br><br>
+
+1. BoardRepository.java
+~~~java
+package com.green.repository;
+
+import java.util.Optional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import com.green.entity.Board;
+
+public interface BoardRepository extends JpaRepository<Board, Long>{
+	@Query("select b from Board b left join b.section s where s.sectionNo =:sectionNo")
+	Page<Board> getBoardListPageAll(@Param("sectionNo") Long sectionNo, Pageable pageable);
+	
+	@Query("select b from Board b left join b.section s where s.sectionNo =:sectionNo and b.boardWriteYear = :boardWriteYear")
+	Page<Board> getBoardPageAnotherDate(@Param("sectionNo") Long sectionNo, @Param("boardWriteYear") int boardWriteYear, Pageable pagealbe);
+	
+	Optional<Board> findByBoardNoAndSection_sectionNo(long boardNo, Long sectionNo);
+	
+	@Query("select distinct max(b.boardWriteYear) from Board b left join b.section s where s.sectionNo =:sectionNo")
+	Optional<Integer> getBoardDateMax(@Param("sectionNo") Long sectionNo);
+	
+	@Query("select distinct min(b.boardWriteYear) from Board b left join b.section s where s.sectionNo =:sectionNo")
+	Optional<Integer> getBoardDateMin(@Param("sectionNo") Long sectionNo);
+	
+	@Query("select b from Board b where lower(b.boardTitle) like lower(concat('%', :searchResult, '%')) or " +
+			   "lower(replace(b.boardTitle, ' ', '')) like lower(replace(concat('%', :searchResult, '%'), ' ', '')) " +
+			   "or lower(b.boardContent) like lower(concat('%', :searchResult, '%')) or " +
+			   "lower(replace(b.boardContent, ' ', '')) like lower(replace(concat('%', :searchResult, '%'), ' ', ''))")
+	Page<Board> getSearchBoardResult(@Param("searchResult") String searchResult, Pageable pageable);
+	
+	
+	@Query("select count(b) from Board b left join b.section s where sectionNo =:sectionNo")
+	Optional<Integer> getBoardCount(@Param("sectionNo") Long sectionNo);
+}
+~~~
+
+<br>
+
 ● Controller Package<br><br>
 
 1. MainController.java
@@ -750,28 +988,28 @@ public class ArchiveServiceImpe implements ArchiveService{
 			
 	        File imageFile = new File(imagePath);
 	        
-	        	if(boardDTO.getFile() == null || boardDTO.getFile().isEmpty()) {
+	        if(boardDTO.getFile() == null || boardDTO.getFile().isEmpty()) {
 	        		
-	        		br.save(board);
+	        	br.save(board);
 	        		
-	        	}else {
+	        }else {
 	        		
-	        		if(imageFile.exists()) {
-	        			imageFile.delete();
-	        		}
-	        		
-	        		Board saveBoard = br.save(board);
-	        		
-	        		saveBoard.setBoardFile(saveBoard.getBoardNo()+"_"+boardDTO.getFile().getOriginalFilename());
-	        		
-					Path filePath = Paths.get(uploadDir, boardDTO.getBoardNo()+"_"+boardDTO.getFile().getOriginalFilename());
-					Files.write(filePath, boardDTO.getFile().getBytes());
-					
-					br.save(saveBoard);
-					
+	        	if(imageFile.exists()) {
+	        		imageFile.delete();
 	        	}
+	        		
+	        	Board saveBoard = br.save(board);
+	        		
+	        	saveBoard.setBoardFile(saveBoard.getBoardNo()+"_"+boardDTO.getFile().getOriginalFilename());
+	        		
+	        	Path filePath = Paths.get(uploadDir, boardDTO.getBoardNo()+"_"+boardDTO.getFile().getOriginalFilename());
+	        	Files.write(filePath, boardDTO.getFile().getBytes());
+					
+	        	br.save(saveBoard);
+					
+	        }
 	        	
-	            return true;
+	        return true;
 		
 		}catch(Exception e) {
 			return false;
@@ -780,34 +1018,258 @@ public class ArchiveServiceImpe implements ArchiveService{
 	
 	@Override
 	public boolean archiveRemove(long boardNo) {
-			Optional<Board> result = br.findById(boardNo);
+		Optional<Board> result = br.findById(boardNo);
 
-			if(result.isPresent()) {
+		if(result.isPresent()) {
 			
-				Board board = result.get();
+			Board board = result.get();
 				
-				String uploadDir = "C:/asset/";
+			String uploadDir = "C:/asset/";
 				
-		        String imagePath = uploadDir + board.getBoardFile();
+			String imagePath = uploadDir + board.getBoardFile();
 		        
-		        File imageFile = new File(imagePath);
+			File imageFile = new File(imagePath);
 			
-		        if(br.existsById(boardNo)) {
+			if(br.existsById(boardNo)) {
 		        	
-		        	if(imageFile.exists()) {
-		        		imageFile.delete();
-		        	}
-		        	
-		        	br.deleteById(boardNo);
-		        	
-		        	return true;
-		        	
+				if(imageFile.exists()) {
+		        	imageFile.delete();
 		        }
-
+		        	
+		        br.deleteById(boardNo);
+		        	
+		        return true;
+		        	
 			}
+
+		}
 			
-			return false;	
+		return false;	
 	}
 
+}
+~~~
+
+<br>
+
+3. VideoService.java
+~~~java
+package com.green.service;
+
+import java.util.List;
+
+import com.green.dto.BoardDTO;
+import com.green.dto.PagingInfo;
+
+public interface VideoService {
+	public List<BoardDTO> getMainVideoList();
+	
+	public List<BoardDTO> getVideoList(PagingInfo pagingInfo);
+	public int getVideoCount();
+	
+	public BoardDTO getVideoDetail(long boardNo, BoardDTO boardDTO);
+	public void videoDetailCount(long boardNo);
+
+	public boolean videoWrite(BoardDTO boardDTO);
+	public boolean videoModify(BoardDTO boardDTO);
+	public boolean videoRemove(long boardNo);
+}
+~~~
+
+<br>
+
+VideoServiceImpe.java
+~~~java
+package com.green.service;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+
+import com.green.dto.BoardDTO;
+import com.green.dto.PagingInfo;
+import com.green.entity.Board;
+import com.green.repository.BoardRepository;
+import com.green.repository.SectionRepository;
+
+@Service
+public class VideoServiceImpe implements VideoService {
+	
+	@Autowired
+	BoardRepository br;
+	
+	@Autowired
+	SectionRepository sr;
+	
+	@Override
+	public List<BoardDTO> getMainVideoList() {
+		Sort sort = Sort.by("regDate").descending();
+		
+		Pageable pageable = PageRequest.of(0, 3, sort);
+		
+		Page<Board> result = br.getBoardListPageAll(3L, pageable);
+		
+		List<BoardDTO> list = new ArrayList<>();
+		
+		for(Board board : result.getContent()) {
+			
+			BoardDTO boardDTO = new BoardDTO();
+			
+			boardDTO.setBoardNo(board.getBoardNo());
+			boardDTO.setBoardTitle(board.getBoardTitle());
+			boardDTO.setBoardContent(board.getBoardContent());
+			boardDTO.setRegDate(board.getRegDate());
+			boardDTO.setModDate(board.getModDate());
+			boardDTO.setBoardFile(board.getBoardFile());
+			boardDTO.setViewCount(board.getViewCount());
+			boardDTO.setSectionNo(board.getSection().getSectionNo());
+			
+			list.add(boardDTO);
+		}
+		
+		return list;
+	}
+	
+	@Override
+	public List<BoardDTO> getVideoList(PagingInfo pagingInfo) {
+		Sort sort = Sort.by("regDate").descending();
+		
+		Pageable pageable = PageRequest.of(pagingInfo.getPageNum()-1, pagingInfo.getAmount()-1, sort);
+		
+		pagingInfo.setAmount(pagingInfo.getAmount()-1);
+
+		Page<Board> result = br.getBoardListPageAll(3L, pageable);
+		
+		List<BoardDTO> list = new ArrayList<>();
+		
+		for(Board board : result.getContent()) {
+			
+			BoardDTO boardDTO = new BoardDTO();
+			
+			boardDTO.setBoardNo(board.getBoardNo());
+			boardDTO.setBoardTitle(board.getBoardTitle());
+			boardDTO.setBoardContent(board.getBoardContent());
+			boardDTO.setRegDate(board.getRegDate());
+			boardDTO.setModDate(board.getModDate());
+			boardDTO.setBoardWriteYear(board.getBoardWriteYear());
+			boardDTO.setViewCount(board.getViewCount());
+			boardDTO.setBoardFile(board.getBoardFile());
+			boardDTO.setSectionNo(board.getSection().getSectionNo());
+			
+			list.add(boardDTO);
+			
+		}
+		return list;
+	}
+	
+	@Override
+	public int getVideoCount() {
+		Pageable pageable = PageRequest.of(0, 8);
+		
+		Page<Board> result = br.getBoardListPageAll(3L, pageable);
+		
+		return (int)result.getTotalElements();
+	}
+	
+	@Override
+	public BoardDTO getVideoDetail(long boardNo, BoardDTO boardDTO) {
+		Optional<Board> result = br.findByBoardNoAndSection_sectionNo(boardNo, 3L);
+		
+		if(result.isPresent()) {
+			
+			Board board = result.get();
+			
+			boardDTO.setBoardNo(board.getBoardNo());
+			boardDTO.setBoardTitle(board.getBoardTitle());
+			boardDTO.setBoardContent(board.getBoardContent());
+			boardDTO.setRegDate(board.getRegDate());
+			boardDTO.setModDate(board.getModDate());
+			boardDTO.setBoardFile(board.getBoardFile());
+			boardDTO.setViewCount(board.getViewCount());
+			boardDTO.setSectionNo(board.getSection().getSectionNo());
+			
+			return boardDTO;
+
+		}
+		
+		return null;
+	}
+	
+	@Override
+	public void videoDetailCount(long boardNo) {
+	    Optional<Board> result = br.findByBoardNoAndSection_sectionNo(boardNo, 3L);
+
+	    if(result.isPresent()) {
+	        Board board = result.get();
+	        board.setViewCount(board.getViewCount() + 1);
+	        br.save(board);
+	    }
+	}
+	
+	@Override
+	public boolean videoWrite(BoardDTO boardDTO) {
+		LocalDateTime now = LocalDateTime.now();
+		
+		int LocalDateValue = now.getYear();
+		
+		try {
+			
+			Board board = Board.builder().
+					boardTitle(boardDTO.getBoardTitle()).
+					boardContent(boardDTO.getBoardContent()).
+					boardFile(boardDTO.getBoardFile()).
+					boardWriteYear(LocalDateValue).
+					section(sr.findById(boardDTO.getSectionNo()).orElse(null)).
+					build();
+			
+			board = br.save(board);
+			
+			return true;
+			
+		}catch(Exception e) {
+			return false;
+		}
+	}
+	
+	@Override
+	public boolean videoModify(BoardDTO boardDTO) {
+		try {
+			
+			Board board = Board.builder().
+					boardNo(boardDTO.getBoardNo()).
+					boardTitle(boardDTO.getBoardTitle()).
+					boardContent(boardDTO.getBoardContent()).
+					boardFile(boardDTO.getBoardFile()).
+					boardWriteYear(boardDTO.getBoardWriteYear()).
+					viewCount(boardDTO.getViewCount()).
+					section(sr.findById(boardDTO.getSectionNo()).orElse(null)).
+					build();
+			br.save(board);
+			
+			return true;
+			
+		}catch(Exception e) {
+			return false;
+		}
+	}
+	
+	@Override
+	public boolean videoRemove(long boardNo) {
+		if(br.existsById(boardNo)){
+			br.deleteById(boardNo);
+			return true;
+		}else {
+			return false;
+		}	
+	}
+	
 }
 ~~~
