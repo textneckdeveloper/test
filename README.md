@@ -45,6 +45,8 @@ public class WebMvcConfigurer implements org.springframework.web.servlet.config.
 }
 ~~~
 
+<br>
+
 ● Dto Package<br><br>
 
 1. BoardDTO.java
