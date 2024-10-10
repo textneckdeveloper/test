@@ -42,6 +42,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Data
 public class BoardDTO {
+	
 		private long boardNo;
 		private String boardTitle;
 		private String boardContent;
@@ -52,6 +53,7 @@ public class BoardDTO {
 		private LocalDateTime regDate;
 		private LocalDateTime modDate;
 		private Long sectionNo;
+		
 }
 ~~~
 
@@ -65,6 +67,7 @@ import lombok.Data;
 
 @Data
 public class PageDTO {
+	
 	private int startPage;
 	private int endPage;
 	
@@ -75,6 +78,7 @@ public class PageDTO {
 	private PagingInfo pagingInfo;
 	
 	public PageDTO(PagingInfo pagingInfo, long total) {
+		
 		this.pagingInfo = pagingInfo;
 		this.total = total;
 		
@@ -83,13 +87,15 @@ public class PageDTO {
 		
 		int realEndPage = (int)(Math.ceil(this.total/(pagingInfo.getAmount()*1.0)));
 		
-		if(realEndPage < this.endPage) {
+		if (realEndPage < this.endPage) {
 			this.endPage = realEndPage;
 		}
 		
 		this.prev = startPage != 1;
 		this.next = this.endPage < realEndPage;
+		
 	}
+	
 }
 ~~~
 
@@ -105,12 +111,14 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class PagingInfo {
+	
 	private int pageNum;
 	private int amount;
 	
 	public PagingInfo() {
 		this(1, 9);
 	}
+	
 }
 ~~~
 
@@ -147,6 +155,7 @@ import lombok.ToString;
 @Builder
 @ToString
 public class Board extends BaseEntity {
+	
 	@Id
 	@GeneratedValue(strategy=GenerationType.IDENTITY)
 	private Long boardNo;
@@ -154,10 +163,10 @@ public class Board extends BaseEntity {
 	@Column
 	private int boardWriteYear;
 	
-	@Column(length=100, nullable=false)
+	@Column(length = 100, nullable = false)
 	private String boardTitle;
 	
-	@Column(length=1000, nullable=false)
+	@Column(length = 1000, nullable = false)
 	private String boardContent;
 	
 	@Setter
@@ -165,12 +174,13 @@ public class Board extends BaseEntity {
 	private String boardFile;
 	
 	@Setter
-	@Column(nullable=false)
+	@Column(nullable = false)
 	private int viewCount;
 	
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name="section_no", nullable=false)
+	@JoinColumn(name = "section_no", nullable = false)
 	private Section section;
+	
 }
 ~~~
 
@@ -201,17 +211,19 @@ import lombok.ToString;
 @Getter
 @ToString
 public class Section {
+	
 	@Id
 	@GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "section_seq")
 	@SequenceGenerator(name = "section_seq", sequenceName = "SECTION_SEQ", allocationSize = 1)
 	private Long sectionNo;
 	
-	@Column(length=50, nullable=false)
+	@Column(length = 50, nullable = false)
 	private String sectionName;
 
 	public Section(String sectionName) {
 		this.sectionName = sectionName;
 	}
+	
 }
 ~~~
 
@@ -233,7 +245,8 @@ import org.springframework.data.repository.query.Param;
 
 import com.green.entity.Board;
 
-public interface BoardRepository extends JpaRepository<Board, Long>{
+public interface BoardRepository extends JpaRepository<Board, Long> {
+	
 	@Query("select b from Board b left join b.section s where s.sectionNo =:sectionNo")
 	Page<Board> getBoardListPageAll(@Param("sectionNo") Long sectionNo, Pageable pageable);
 	
@@ -257,6 +270,7 @@ public interface BoardRepository extends JpaRepository<Board, Long>{
 	
 	@Query("select count(b) from Board b left join b.section s where sectionNo =:sectionNo")
 	Optional<Integer> getBoardCount(@Param("sectionNo") Long sectionNo);
+	
 }
 ~~~
 
@@ -299,14 +313,17 @@ public class MainController {
 	
 	@GetMapping("/api/csrf-token")
 	public ResponseEntity<Map<String, String>> getCsrfToken(HttpServletRequest request) {
+		
 	    CsrfToken csrf = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
 	    Map<String, String> tokens = new HashMap<>();
 	    tokens.put("token", csrf.getToken());
 	    return ResponseEntity.ok(tokens);
+	    
 	}
 	
 	@GetMapping("/userAuthentication")
 	public ResponseEntity<ResponseMessage> getUserAuth(@AuthenticationPrincipal AuthMemberDetails authMember) {
+		
 		if(authMember != null) {
 			MemberInfoDTO memberInfo = MemberInfoDTO.builder()
 					.id(authMember.getId())
@@ -320,10 +337,12 @@ public class MainController {
 			}
 			return ResponseEntity.ok().body(new ResponseMessage(memberInfo, true));
 		} return ResponseEntity.ok().body(null);
+		
 	}
 	
 	@GetMapping("/search")
 	public ResponseEntity<Map<String, Object>> search(@RequestParam("searchQuery") String searchQuery, PagingInfo pagingInfo) {
+		
 		long total = service.getSearchBoardCount(searchQuery);
 		
 		Map<String, Object> response = new HashMap<>();
@@ -332,6 +351,7 @@ public class MainController {
 		response.put("page", new PageDTO(pagingInfo, total));
 		
 		return ResponseEntity.ok(response);
+		
 	}
 	
 }
@@ -373,6 +393,7 @@ public class ArchiveController {
 	
 	@GetMapping("/mainArchive")
 	public ResponseEntity<Map<String, Object>> goToMainArchiveSection() {
+		
 		Map<String, Object> response = new HashMap<>();
 		response.put("archiveList", service.getMainArchiveList());
 		return ResponseEntity.ok(response);
@@ -381,6 +402,7 @@ public class ArchiveController {
 
 	@GetMapping("/archiveAllList")
 	public ResponseEntity<Map<String, Object>> goToArchive(PagingInfo pagingInfo) {
+		
 		Map<String, Object> response = new HashMap<>();
 		long total = service.getArchiveCount(pagingInfo);
 		
@@ -390,10 +412,12 @@ public class ArchiveController {
 		response.put("page", new PageDTO(pagingInfo, total));
 		
 		return ResponseEntity.ok(response);
+		
 	}
 	
 	@GetMapping("/getArchiveListByYear")
 	public ResponseEntity<Map<String, Object>> goToArchiveOne(PagingInfo pagingInfo, @RequestParam("thisYear") int thisYear) {
+		
 		Map<String, Object> response = new HashMap<>();
 
 		long total = service.getArchiveCountByAnotherDate(thisYear);
@@ -404,6 +428,7 @@ public class ArchiveController {
 		response.put("page", new PageDTO(pagingInfo, total));
 		
 		return ResponseEntity.ok(response);
+		
 	}
 	
 	@GetMapping("/detail/{boardNo}")
@@ -415,33 +440,40 @@ public class ArchiveController {
 		response = service.getArchiveDetail(boardNo, boardDTO);
 		
 		return ResponseEntity.ok(response);
+		
 	}
 	
 	@PostMapping("/write")
 	public ResponseEntity<CheckMessage> writeArchive(BoardDTO boardDTO) {
+		
 		boolean writeCheck = service.archiveWrite(boardDTO);
 		
 		return writeCheck
 		? ResponseEntity.ok(new CheckMessage("작성 됐습니다.", true))
 		: ResponseEntity.ok(new CheckMessage("작성이 되지 않았습니다.", false));
+		
 	}
 	
 	@PutMapping("/modify")
 	public ResponseEntity<CheckMessage> archiveModify(BoardDTO boardDTO) {
+		
 		boolean modifyCheck = service.archiveModify(boardDTO);
 		
 		return modifyCheck
 		? ResponseEntity.ok(new CheckMessage("수정 됐습니다.", true))
 		: ResponseEntity.ok(new CheckMessage("수정되지 않았습니다.", false));
+		
 	}
 	
 	@DeleteMapping("/remove")
 	public ResponseEntity<CheckMessage> archiveRemove(long boardNo) {
+		
 		boolean removeCheck = service.archiveRemove(boardNo);
 		
 		return removeCheck
 		? ResponseEntity.ok(new CheckMessage("삭제 됐습니다.", true))
 		: ResponseEntity.ok(new CheckMessage("삭제가 되지 않았습니다.", false));
+		
 	}
 
 }
@@ -483,15 +515,18 @@ public class VideoController {
 	
 	@GetMapping("/mainVideo")
 	public ResponseEntity<Map<String, Object>> goToMainVideoSection() {
+		
 		Map<String, Object> response = new HashMap<>();
 		
 		response.put("videoList", service.getMainVideoList());
 		
 		return ResponseEntity.ok(response);
+		
 	}
 	
 	@GetMapping("/videoAllList")
 	public ResponseEntity<Map<String, Object>> goTovideo(PagingInfo pagingInfo) {
+		
 		Map<String, Object> response = new HashMap<>();
 		
 		long total = service.getVideoCount();
@@ -500,10 +535,12 @@ public class VideoController {
 		response.put("page", new PageDTO(pagingInfo, total));
 		
 		return ResponseEntity.ok(response);
+		
 	}
 	
 	@GetMapping("/detail/{boardNo}")
 	public ResponseEntity<BoardDTO> videoView(@PathVariable("boardNo") Long boardNo, BoardDTO boardDTO) {
+		
 		BoardDTO response = new BoardDTO();
 		
 		service.videoDetailCount(boardNo);
@@ -511,33 +548,40 @@ public class VideoController {
 		response = service.getVideoDetail(boardNo, boardDTO);
 		
 		return ResponseEntity.ok(response);
+		
 	}
 	
 	@PostMapping("/write")
 	public ResponseEntity<CheckMessage> writeVideo(BoardDTO boardDTO) {
+		
 		boolean writeCheck = service.videoWrite(boardDTO);
 		
 		return writeCheck
 		? ResponseEntity.ok(new CheckMessage("작성 됐습니다.", true))
 		: ResponseEntity.ok(new CheckMessage("작성이 되지 않았습니다.", false));
+		
 	}
 	
 	@PutMapping("/modify")
 	public ResponseEntity<CheckMessage> videoModify(BoardDTO boardDTO) {
+		
 		boolean modifyCheck = service.videoModify(boardDTO);
 		
 		return modifyCheck
 		? ResponseEntity.ok(new CheckMessage("수정 됐습니다.", true))
 		: ResponseEntity.ok(new CheckMessage("수정이 되지 않았습니다.", false));
+		
 	}
 	
 	@DeleteMapping("/remove")
 	public ResponseEntity<CheckMessage> videoRemove(long boardNo) {
+		
 		boolean removeCheck = service.videoRemove(boardNo);
 		
 		return removeCheck
 		? ResponseEntity.ok(new CheckMessage("삭제 됐습니다.", true))
 		: ResponseEntity.ok(new CheckMessage("삭제가 되지 않았습니다.", false));
+		
 	}
 	
 }
@@ -558,10 +602,12 @@ import com.green.dto.PagingInfo;
 import com.green.dto.SiteInfoDTO;
 
 public interface MainService {
+	
 	public List<BoardDTO> boardSearch(PagingInfo pagingInfo, String searchQuery);
 	public int getSearchBoardCount(String searchQuery);
 	
 	public SiteInfoDTO getSiteInfo();
+	
 }
 ~~~
 
@@ -612,7 +658,7 @@ public class MainServiceImpe implements MainService {
 		
 		List<BoardDTO> list = new ArrayList<>();
 		
-		for(Board board : result) {
+		for (Board board : result) {
 			
 			BoardDTO boardDTO = new BoardDTO();
 			
@@ -647,6 +693,7 @@ public class MainServiceImpe implements MainService {
 
 	@Override
 	public SiteInfoDTO getSiteInfo() {
+		
 		int totalContents = 0;
 		int totalArchiveContents = 0;
 		int totalVideoContents = 0;
@@ -654,20 +701,22 @@ public class MainServiceImpe implements MainService {
 		int totalMembersNotFromSocial = 0;
 		int totalMembersFromSocial = 0;
 		
-		if(br.getBoardCount(2L).isPresent()) {
+		if (br.getBoardCount(2L).isPresent()) {
 			totalArchiveContents = (Integer)br.getBoardCount(2L).get();
 		}
-		if(br.getBoardCount(3L).isPresent()) {
+		if (br.getBoardCount(3L).isPresent()) {
 			totalVideoContents = (Integer)br.getBoardCount(3L).get();
 		}
+		
 		totalContents = totalArchiveContents + totalVideoContents;
 		
-		if(mr.getMemberCountBySocial(false).isPresent()) {
+		if (mr.getMemberCountBySocial(false).isPresent()) {
 			totalMembersNotFromSocial = (Integer)mr.getMemberCountBySocial(false).get();
 		}
-		if(mr.getMemberCountBySocial(true).isPresent()) {
+		if (mr.getMemberCountBySocial(true).isPresent()) {
 			totalMembersFromSocial = (Integer)mr.getMemberCountBySocial(true).get();
 		}
+		
 		totalMembers = totalMembersNotFromSocial + totalMembersFromSocial;
 		
 		SiteInfoDTO siteInfo = SiteInfoDTO.builder()
@@ -677,7 +726,9 @@ public class MainServiceImpe implements MainService {
 								.totalMembers(totalMembers)
 								.totalMembersFromSocial(totalMembersFromSocial)
 								.build();
+		
 		return siteInfo;
+		
 	}
 	
 }
@@ -695,6 +746,7 @@ import com.green.dto.BoardDTO;
 import com.green.dto.PagingInfo;
 
 public interface ArchiveService {
+	
 	public List<BoardDTO> getMainArchiveList();
 	
 	public int getMaxDate();
@@ -712,6 +764,7 @@ public interface ArchiveService {
 	public boolean archiveWrite(BoardDTO boardDTO);
 	public boolean archiveModify(BoardDTO boardDTO);
 	public boolean archiveRemove(long boardNo);
+	
 }
 ~~~
 
@@ -755,6 +808,7 @@ public class ArchiveServiceImpe implements ArchiveService{
 	
 	@Override
 	public int getMaxDate() {
+		
 		Optional<Integer> result = br.getBoardDateMax(2L);
 		
 		if(result.isPresent()) {
@@ -764,10 +818,12 @@ public class ArchiveServiceImpe implements ArchiveService{
 		}
 		
 		return 0;
+		
 	}
 	
 	@Override
 	public int getMinDate() {
+		
 		Optional<Integer> result = br.getBoardDateMin(2L);
 		
 		if(result.isPresent()) {
@@ -777,10 +833,12 @@ public class ArchiveServiceImpe implements ArchiveService{
 		}
 		
 		return 0;
+		
 	}
 	
 	@Override
 	public List<BoardDTO> getMainArchiveList() {
+		
 		Sort sort = Sort.by("regDate").descending();
 		
 		Pageable pageable = PageRequest.of(0, 3, sort);
@@ -789,7 +847,7 @@ public class ArchiveServiceImpe implements ArchiveService{
 		
 		List<BoardDTO> list = new ArrayList<>();
 		
-		for(Board board : result.getContent()) {
+		for (Board board : result.getContent()) {
 			
 			BoardDTO boardDTO = new BoardDTO();
 			
@@ -808,10 +866,12 @@ public class ArchiveServiceImpe implements ArchiveService{
 		}
 
 		return list;
+		
 	}
 	
 	@Override
 	public List<BoardDTO> getArchiveList(PagingInfo pagingInfo) {
+		
 		Sort sort = Sort.by("regDate").descending();
 		
 		Pageable pageable = PageRequest.of(pagingInfo.getPageNum()-1, pagingInfo.getAmount(), sort);
@@ -839,10 +899,12 @@ public class ArchiveServiceImpe implements ArchiveService{
 		}
 		
 		return list;
+		
 	}
 
 	@Override
 	public List<BoardDTO> getArchiveListByAnotherDate(PagingInfo pagingInfo, int thisYear) {
+		
 		Sort sort = Sort.by("regDate").descending();
 		
 		Pageable pageable = PageRequest.of(pagingInfo.getPageNum()-1, 9, sort);
@@ -851,7 +913,7 @@ public class ArchiveServiceImpe implements ArchiveService{
 		
 		List<BoardDTO> list = new ArrayList<>();
 		
-		for(Board board : result.getContent()) {
+		for (Board board : result.getContent()) {
 			
 			BoardDTO boardDTO = new BoardDTO();
 			
@@ -869,31 +931,37 @@ public class ArchiveServiceImpe implements ArchiveService{
 		}
 		
 		return list;
+		
 	}
 	
 	@Override
 	public int getArchiveCount(PagingInfo pagingInfo) {
+		
 		Pageable pageable = PageRequest.of(0, pagingInfo.getAmount());
 		
 		Page<Board> result = br.getBoardListPageAll(2L, pageable);
 		
 		return (int)result.getTotalElements();
+		
 	}
 	
 	@Override
 	public int getArchiveCountByAnotherDate(int year) {
+		
 		Pageable pageable = PageRequest.of(0, 9);
 		
 		Page<Board> result = br.getBoardPageAnotherDate(2L, year, pageable);
 		
 		return (int)result.getTotalElements();
+		
 	}
 	
 	@Override
 	public BoardDTO getArchiveDetail(long boardNo, BoardDTO boardDTO) {
+		
 		Optional<Board> result = br.findByBoardNoAndSection_sectionNo(boardNo, 2L);
 		
-		if(result.isPresent()) {
+		if (result.isPresent()) {
 			Board board = result.get();
 			
 			boardDTO.setBoardNo(board.getBoardNo());
@@ -910,21 +978,25 @@ public class ArchiveServiceImpe implements ArchiveService{
 		}
 		
 		return null;
+		
 	}
 	
 	@Override
 	public void archiveDetailCount(long boardNo) {
+		
 	    Optional<Board> result = br.findByBoardNoAndSection_sectionNo(boardNo, 2L);
 
-	    if(result.isPresent()) {
+	    if (result.isPresent()) {
 	        Board board = result.get();
 	        board.setViewCount(board.getViewCount() + 1);
 	        br.save(board);
 	    }
+	    
 	}
 	
 	@Override
 	public boolean archiveWrite(BoardDTO boardDTO) {
+		
 		LocalDateTime now = LocalDateTime.now();
 		
 		int LocalDateValue = now.getYear();
@@ -940,11 +1012,11 @@ public class ArchiveServiceImpe implements ArchiveService{
 					section(sr.findById(boardDTO.getSectionNo()).orElse(null)).
 					build();
 			
-			if(boardDTO.getFile() == null || boardDTO.getFile().isEmpty()) {
+			if (boardDTO.getFile() == null || boardDTO.getFile().isEmpty()) {
 				
 				br.save(board);
 				
-			}else {
+			} else {
 				
 				Board saveBoard = br.save(board);
 				
@@ -962,15 +1034,17 @@ public class ArchiveServiceImpe implements ArchiveService{
 		}catch(IOException e) {
 			return false;
 		}
+		
 	}
 	
 	@Override
 	public boolean archiveModify(BoardDTO boardDTO) {
+		
 		String uploadDir = "C:/asset";
 
 		try {
 			
-			if(boardDTO.getBoardFile().equals("null")) {
+			if (boardDTO.getBoardFile().equals("null")) {
 				boardDTO.setBoardFile(null);
 			}
 			
@@ -988,13 +1062,13 @@ public class ArchiveServiceImpe implements ArchiveService{
 			
 	        File imageFile = new File(imagePath);
 	        
-	        if(boardDTO.getFile() == null || boardDTO.getFile().isEmpty()) {
+	        if (boardDTO.getFile() == null || boardDTO.getFile().isEmpty()) {
 	        		
 	        	br.save(board);
 	        		
-	        }else {
+	        } else {
 	        		
-	        	if(imageFile.exists()) {
+	        	if (imageFile.exists()) {
 	        		imageFile.delete();
 	        	}
 	        		
@@ -1013,14 +1087,16 @@ public class ArchiveServiceImpe implements ArchiveService{
 		
 		}catch(Exception e) {
 			return false;
-		}		
+		}
+	
 	}
 	
 	@Override
 	public boolean archiveRemove(long boardNo) {
+		
 		Optional<Board> result = br.findById(boardNo);
 
-		if(result.isPresent()) {
+		if (result.isPresent()) {
 			
 			Board board = result.get();
 				
@@ -1030,9 +1106,9 @@ public class ArchiveServiceImpe implements ArchiveService{
 		        
 			File imageFile = new File(imagePath);
 			
-			if(br.existsById(boardNo)) {
+			if (br.existsById(boardNo)) {
 		        	
-				if(imageFile.exists()) {
+				if (imageFile.exists()) {
 		        	imageFile.delete();
 		        }
 		        	
@@ -1044,7 +1120,8 @@ public class ArchiveServiceImpe implements ArchiveService{
 
 		}
 			
-		return false;	
+		return false;
+		
 	}
 
 }
@@ -1062,6 +1139,7 @@ import com.green.dto.BoardDTO;
 import com.green.dto.PagingInfo;
 
 public interface VideoService {
+	
 	public List<BoardDTO> getMainVideoList();
 	
 	public List<BoardDTO> getVideoList(PagingInfo pagingInfo);
@@ -1073,6 +1151,7 @@ public interface VideoService {
 	public boolean videoWrite(BoardDTO boardDTO);
 	public boolean videoModify(BoardDTO boardDTO);
 	public boolean videoRemove(long boardNo);
+	
 }
 ~~~
 
@@ -1111,6 +1190,7 @@ public class VideoServiceImpe implements VideoService {
 	
 	@Override
 	public List<BoardDTO> getMainVideoList() {
+		
 		Sort sort = Sort.by("regDate").descending();
 		
 		Pageable pageable = PageRequest.of(0, 3, sort);
@@ -1119,7 +1199,7 @@ public class VideoServiceImpe implements VideoService {
 		
 		List<BoardDTO> list = new ArrayList<>();
 		
-		for(Board board : result.getContent()) {
+		for (Board board : result.getContent()) {
 			
 			BoardDTO boardDTO = new BoardDTO();
 			
@@ -1133,13 +1213,16 @@ public class VideoServiceImpe implements VideoService {
 			boardDTO.setSectionNo(board.getSection().getSectionNo());
 			
 			list.add(boardDTO);
+			
 		}
 		
 		return list;
+		
 	}
 	
 	@Override
 	public List<BoardDTO> getVideoList(PagingInfo pagingInfo) {
+		
 		Sort sort = Sort.by("regDate").descending();
 		
 		Pageable pageable = PageRequest.of(pagingInfo.getPageNum()-1, pagingInfo.getAmount()-1, sort);
@@ -1150,7 +1233,7 @@ public class VideoServiceImpe implements VideoService {
 		
 		List<BoardDTO> list = new ArrayList<>();
 		
-		for(Board board : result.getContent()) {
+		for (Board board : result.getContent()) {
 			
 			BoardDTO boardDTO = new BoardDTO();
 			
@@ -1167,23 +1250,28 @@ public class VideoServiceImpe implements VideoService {
 			list.add(boardDTO);
 			
 		}
+		
 		return list;
+		
 	}
 	
 	@Override
 	public int getVideoCount() {
+		
 		Pageable pageable = PageRequest.of(0, 8);
 		
 		Page<Board> result = br.getBoardListPageAll(3L, pageable);
 		
 		return (int)result.getTotalElements();
+		
 	}
 	
 	@Override
 	public BoardDTO getVideoDetail(long boardNo, BoardDTO boardDTO) {
+		
 		Optional<Board> result = br.findByBoardNoAndSection_sectionNo(boardNo, 3L);
 		
-		if(result.isPresent()) {
+		if (result.isPresent()) {
 			
 			Board board = result.get();
 			
@@ -1201,21 +1289,25 @@ public class VideoServiceImpe implements VideoService {
 		}
 		
 		return null;
+		
 	}
 	
 	@Override
 	public void videoDetailCount(long boardNo) {
+		
 	    Optional<Board> result = br.findByBoardNoAndSection_sectionNo(boardNo, 3L);
 
-	    if(result.isPresent()) {
+	    if (result.isPresent()) {
 	        Board board = result.get();
 	        board.setViewCount(board.getViewCount() + 1);
 	        br.save(board);
 	    }
+	    
 	}
 	
 	@Override
 	public boolean videoWrite(BoardDTO boardDTO) {
+		
 		LocalDateTime now = LocalDateTime.now();
 		
 		int LocalDateValue = now.getYear();
@@ -1237,10 +1329,12 @@ public class VideoServiceImpe implements VideoService {
 		}catch(Exception e) {
 			return false;
 		}
+		
 	}
 	
 	@Override
 	public boolean videoModify(BoardDTO boardDTO) {
+		
 		try {
 			
 			Board board = Board.builder().
@@ -1259,16 +1353,19 @@ public class VideoServiceImpe implements VideoService {
 		}catch(Exception e) {
 			return false;
 		}
+		
 	}
 	
 	@Override
 	public boolean videoRemove(long boardNo) {
-		if(br.existsById(boardNo)){
+		
+		if (br.existsById(boardNo)){
 			br.deleteById(boardNo);
 			return true;
-		}else {
+		} else {
 			return false;
-		}	
+		}
+	
 	}
 	
 }
